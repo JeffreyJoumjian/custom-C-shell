@@ -35,9 +35,10 @@ int main()
 			else if (pid == 0)
 			{
 				// make command ready to pass it to execvp, if < 0 => cmd == exit
-				if (parseCommand(cmd, args) < 0)
-					exit(12);
+				if (parseCommand(cmd, args) < 0 || strcasecmp(cmd, "exit") == 0)
+					return 12;
 
+				// change directory command
 				else if (strcasecmp(args[0], "cd") == 0)
 				{
 					// if cd doesn't have an arg or is trying to go up server directory
@@ -51,6 +52,7 @@ int main()
 						pathForward(&USER, args[1]);
 				}
 
+				// print working directory
 				else if (strcasecmp(args[0], "pwd") == 0)
 					printf("%s\n", USER.curr_path);
 
@@ -58,6 +60,10 @@ int main()
 				else if (strcasecmp(args[0], "user") == 0 && strcasecmp(args[1], "-n") == 0)
 					assignUsername(USER.name, MAX_USER_NAME, args[2]);
 
+				else if (hasPipes(cmd) > 0)
+				{
+					// work with pipes
+				}
 				else
 					execvp(args[0], args);
 			}

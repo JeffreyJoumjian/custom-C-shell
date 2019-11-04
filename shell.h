@@ -3,11 +3,13 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/types.h>
+#include <string.h>
+#include <sys/malloc.h>
+
+// for server
 #include <ctype.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include <string.h>
-#include <stdbool.h>
 
 #define CMD_ARRAY_SIZE 11
 #define MAX_CMD_SIZE 100
@@ -15,6 +17,23 @@
 #define MAX_USER_NAME 100
 #define MAX_PATH_SIZE 1000
 #define SHELL_INDICATOR "$ "
+
+// for server
+#define MAX_LINE 4096
+#define BACKLOG 10
+#define SERVER_PORT 8080
+#define SERVER_IP "127.0.0.1"
+
+// for client
+#define CLIENT_GREET "you have reached the server, please send an input: \0"
+#define CLIENT_RESPONSE "your response was: \0"
+
+typedef struct client
+{
+	int id;
+	char input[MAX_LINE];
+	char res[MAX_LINE];
+} CLIENT;
 
 typedef struct user
 {
@@ -27,51 +46,40 @@ typedef struct user
 	char name[MAX_USER_NAME];
 } S_User;
 
+void removeWhiteSpace(char *cmd, int n);
+
 int parseCommand(char *cmd, char **args)
 {
 
-	// removing trailing whitespace
-	for (int i = strlen(cmd) - 1; i >= 0; i--)
-	{
-		if (isspace(cmd[i]))
-			cmd[i] = '\0';
-		else
-			break;
-	}
-
-	// if cmd == exit => stop parsing
+	// TODO split command based on pipes first then split each individual part based on spaces
 	int n = strlen(cmd);
-	if (n == 4)
-	{
-		char *exit = "exit";
-		for (int i = 0; i < n; i++)
-		{
-			if (tolower(cmd[i]) != exit[i])
-				break;
-			return -1;
-		}
-	}
 
+	removeWhiteSpace(cmd, n);
+
+	if (strcasecmp(cmd, "exit") == 0)
+		return -1;
+
+	// seperate command based on spaces => String.split(" ");
 	char *ptr = strtok(cmd, " ");
 	int j = 0;
 
 	while (ptr != NULL)
 	{
+		// check for pipes while separating command
+		// if (strstr(ptr, "|") != NULL) // has cmd pipe
+		// 	cmdPipe = true;
+		// if (strstr(ptr, "<") != NULL || strstr(ptr, "<<") != NULL) // has file pipe
+		// 	filePipe = true;
+
 		args[j++] = ptr;
 		ptr = strtok(NULL, " ");
 	}
 
+	// make last argument null string to signify end of array
 	args[j] = NULL;
 	return 0;
 }
 
-// void setUpPaths(char *curr, char *HOME, char *last)
-// {
-// 	// getcwd(HOME, MAX_PATH_SIZE);
-// 	strcpy(HOME, "/home");
-// 	strcpy(curr, HOME);
-// 	strcpy(last, "");
-// }
 void setUpPaths(S_User *user)
 {
 	// getcwd(HOME, MAX_PATH_SIZE);
@@ -146,4 +154,44 @@ int assignUsername(char name[], int n, char *newName)
 		return 0;
 	}
 	return 1;
+}
+
+void removeWhiteSpace(char *cmd, int n)
+{
+	// removing preceeding whitespace
+	for (int i = 0; i < n; i++)
+	{
+		if (isspace(cmd[i]))
+		{
+			for (int j = i; j < n; j++)
+			{
+				int temp = cmd[j];
+				cmd[j] = cmd[j + 1];
+				cmd[j + 1] = temp;
+			}
+		}
+		else
+			break;
+	}
+
+	// removing trailing whitespace
+	for (int i = n - 1; i >= 0; i--)
+	{
+		if (isspace(cmd[i]))
+			cmd[i] = '\0';
+		else
+			break;
+	}
+
+	// redundant check to be sure
+	strtok(cmd, "\n\r");
+}
+
+int hasPipes(char *cmd)
+{
+	int n = strlen(cmd);
+	for (int i = 0; i < n; i++)
+		if (cmd[i] == '<' || cmd[i] == '>' || cmd[i] == '|')
+			return i;
+	return -1;
 }
