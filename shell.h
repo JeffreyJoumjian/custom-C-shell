@@ -4,19 +4,19 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <string.h>
-#include <sys/malloc.h>
 
 // for server
 #include <ctype.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-#define CMD_ARRAY_SIZE 11
 #define MAX_CMD_SIZE 100
 #define MAX_ARGS_SIZE 100
 #define MAX_USER_NAME 100
 #define MAX_PATH_SIZE 1000
 #define SHELL_INDICATOR "$ "
+#define EXIT_CMD 31
+#define EXIT_CHDIR 13
 
 // for server
 #define MAX_LINE 4096
@@ -80,14 +80,44 @@ int parseCommand(char *cmd, char **args)
 	return 0;
 }
 
-void setUpPaths(S_User *user)
+void setUpPaths(S_User *user, char *oldName)
 {
 	// getcwd(HOME, MAX_PATH_SIZE);
+
 	strcpy(user->HOME_DIR, user->name);
 	strtok(user->HOME_DIR, ": ");
 	strcat(user->HOME_DIR, "/home");
-	strcpy(user->curr_path, user->HOME_DIR);
-	strcpy(user->prev_path, "");
+
+	//first time changing
+	if (oldName == NULL)
+	{
+		strcpy(user->curr_path, user->HOME_DIR);
+		strcpy(user->prev_path, "");
+	}
+	else
+	{
+		char temp[MAX_PATH_SIZE];
+		char newPath[MAX_PATH_SIZE];
+
+		//update current path
+		strcpy(temp, user->curr_path);
+		printf("%s %s", temp, user->curr_path);
+		strtok(temp, oldName);
+		printf("%s %s", temp, oldName);
+		strcpy(newPath, user->name);
+		printf("%s %s", newPath, user->name);
+		strcat(newPath, temp);
+		printf("%s %s", newPath, temp);
+		strcpy(user->curr_path, newPath);
+		printf("%s %s", user->curr_path, newPath);
+
+		//update previous path
+		// strcpy(temp, user->prev_path);
+		// strtok(temp, oldName);
+		// strcpy(newPath, user->name);
+		// strcat(newPath, temp);
+		// strcpy(user->prev_path, newPath);
+	}
 }
 
 int isHomeDir(S_User *user)
@@ -135,26 +165,51 @@ void pathForward(S_User *user, char *next)
 		perror(NULL);
 }
 
-int assignUsername(char name[], int n, char *newName)
+// TODO change pwd when changing username.
+int assignUsername(S_User *user, char *newName)
 {
 	// getting username from user for personalized experience
 
 	if (newName == NULL)
 	{
 		printf("please enter a new username: ");
-		fgets(name, MAX_USER_NAME, stdin);
+		fgets(user->name, MAX_USER_NAME, stdin);
 	}
 	else
-		strcpy(name, newName);
-
-	if (strcmp(name, "") != 10 && strcmp(name, " ") != 32 && strcmp(name, " ") != -22)
 	{
-		strtok(name, " \n\r");
-		strcat(name, ": ");
+		char *oldName = user->name;
+		strcpy(user->name, newName);
+		setUpPaths(user, oldName);
+	}
+
+	if (strcmp(user->name, "") != 10 && strcmp(user->name, " ") != 32 && strcmp(user->name, " ") != -22)
+	{
+		strtok(user->name, " \n\r");
+		strcat(user->name, ": ");
 		return 0;
 	}
 	return 1;
 }
+// int assignUsername(char name[], int n, char *newName)
+// {
+// 	// getting username from user for personalized experience
+
+// 	if (newName == NULL)
+// 	{
+// 		printf("please enter a new username: ");
+// 		fgets(name, MAX_USER_NAME, stdin);
+// 	}
+// 	else
+// 		strcpy(name, newName);
+
+// 	if (strcmp(name, "") != 10 && strcmp(name, " ") != 32 && strcmp(name, " ") != -22)
+// 	{
+// 		strtok(name, " \n\r");
+// 		strcat(name, ": ");
+// 		return 0;
+// 	}
+// 	return 1;
+// }
 
 void removeWhiteSpace(char *cmd, int n)
 {
