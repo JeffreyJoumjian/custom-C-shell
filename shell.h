@@ -16,7 +16,6 @@
 #define MAX_PATH_SIZE 1000
 #define SHELL_INDICATOR "$ "
 #define EXIT_CMD 31
-#define EXIT_CHDIR 13
 
 // for server
 #define MAX_LINE 4096
@@ -65,12 +64,6 @@ int parseCommand(char *cmd, char **args)
 
 	while (ptr != NULL)
 	{
-		// check for pipes while separating command
-		// if (strstr(ptr, "|") != NULL) // has cmd pipe
-		// 	cmdPipe = true;
-		// if (strstr(ptr, "<") != NULL || strstr(ptr, "<<") != NULL) // has file pipe
-		// 	filePipe = true;
-
 		args[j++] = ptr;
 		ptr = strtok(NULL, " ");
 	}
@@ -99,24 +92,62 @@ void setUpPaths(S_User *user, char *oldName)
 		char temp[MAX_PATH_SIZE];
 		char newPath[MAX_PATH_SIZE];
 
+		// set up old name to copy it to remove it from the path and remove unnecessary parts
+		char old_name_cpy[MAX_USER_NAME];
+		strcpy(old_name_cpy, oldName);
+		strtok(old_name_cpy, " :\n\r");
+
 		//update current path
+		// add curent user path to temp
 		strcpy(temp, user->curr_path);
-		printf("%s %s", temp, user->curr_path);
-		strtok(temp, oldName);
-		printf("%s %s", temp, oldName);
+		// copy new username to newPath
 		strcpy(newPath, user->name);
-		printf("%s %s", newPath, user->name);
-		strcat(newPath, temp);
-		printf("%s %s", newPath, temp);
+
+		int i = strlen(user->name);
+		int j = 0;
+
+		// skip the old name found in temp and then copy the rest of temp into newPath
+		while (i < MAX_PATH_SIZE)
+		{
+			if (i > strlen(temp))
+				break;
+			while (j < strlen(old_name_cpy))
+			{
+				if (temp[i] == old_name_cpy[j])
+					j++;
+				else
+					break;
+			}
+			newPath[i] = temp[i];
+			i++;
+		}
 		strcpy(user->curr_path, newPath);
-		printf("%s %s", user->curr_path, newPath);
 
 		//update previous path
-		// strcpy(temp, user->prev_path);
-		// strtok(temp, oldName);
-		// strcpy(newPath, user->name);
-		// strcat(newPath, temp);
-		// strcpy(user->prev_path, newPath);
+		// add previous user path to temp
+		strcpy(temp, user->prev_path);
+		// copy new username to newPath
+		strcpy(newPath, user->name);
+
+		i = strlen(user->name);
+		j = 0;
+
+		// skip the old name found in temp and then copy the rest of temp into newPath
+		while (i < MAX_PATH_SIZE)
+		{
+			if (i > strlen(temp))
+				break;
+			while (j < strlen(old_name_cpy))
+			{
+				if (temp[i] == old_name_cpy[j])
+					j++;
+				else
+					break;
+			}
+			newPath[i] = temp[i];
+			i++;
+		}
+		strcpy(user->prev_path, newPath);
 	}
 }
 
@@ -177,7 +208,8 @@ int assignUsername(S_User *user, char *newName)
 	}
 	else
 	{
-		char *oldName = user->name;
+		char oldName[MAX_USER_NAME];
+		strcpy(oldName, user->name);
 		strcpy(user->name, newName);
 		setUpPaths(user, oldName);
 	}
