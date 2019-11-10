@@ -20,13 +20,13 @@ int main()
 			fputs(USER.name, stdout);
 
 		// get command from terminal and check if it's not an empty string
-		if (fgets(cmd, MAX_CMD_SIZE, stdin) > 0 && cmd[0] != '\n')
+		if (getInput(cmd))
 		{
 			// parse the command to see what to do
 			int pc = parseCommand(cmd, args);
 
-			// if command is exit => exit shell
-			if (pc < 0)
+			// if failed to parse => command is exit => exit shell
+			if (!pc)
 				return EXIT_CMD;
 
 			else if (strcasecmp(args[0], "cd") == 0)
@@ -72,6 +72,7 @@ int main()
 					{
 						// work with pipes
 					}
+					exit(0);
 				}
 
 				else if (pid > 0)
