@@ -1,0 +1,15 @@
+*** welcome to our custom c shell ***
+
+Supported Commands:
+-------------------
+	1 - help (prints the help manual for the shell)
+	2 - exit (exits the shell)
+	3 - cd <dst_path> (used to change the working directory)
+	4 - pwd (prints the current working directory of the user <username/home/...>)
+	5 - user [ -i, -n ]
+		-n <new_username> (changes the username of the current user)
+		-i (print user info)
+	6 - ls, ps, rm ... (supports all UNIX commands with their arguments)
+	7 - pipe support coming soon
+
+*** Jeffrey Joumjian - Maria Kantardjian - Reem Saado (alphabetically) ***

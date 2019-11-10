@@ -7,11 +7,29 @@
 #include <string.h>
 #include <sys/types.h>
 #include <ctype.h>
+#include <time.h>
 
-char *String_remove(char *str, char *setOfDelimeters)
+int String_Equals(char *str1, char *str2)
 {
-	return strtok(str, setOfDelimeters);
+	return strcmp(str1, str2) == 0;
 }
+int String_EqualsIgnoreCase(char *str1, char *str2)
+{
+	return strcasecmp(str1, str2) == 0;
+}
+
+char *String_splitFirst(char *str, char *seperators)
+{
+	return strtok(str, seperators);
+}
+
+char *String_remove(char *big, char *little)
+{
+	if (strstr(big, little))
+		return strncpy(big, big + strlen(little), strlen(big) - 1);
+	return NULL;
+}
+
 char *String_concat(char *str, char *setOfDelimeters)
 {
 	return strcat(str, setOfDelimeters);
@@ -55,5 +73,5 @@ void removeWhiteSpace(char *cmd, int n)
 	}
 
 	// redundant check to be sure
-	String_remove(cmd, "\n\r");
+	String_splitFirst(cmd, "\n\r");
 }
