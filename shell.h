@@ -9,8 +9,8 @@
 #define MAX_ARGS_SIZE 100
 #define MAX_USER_NAME 100
 #define MAX_PATH_SIZE 1000
+#define MAX_PIPE_SIZE 20
 #define SHELL_INDICATOR "$ "
-#define EXIT_CMD 31
 #define READ_END 0
 #define WRITE_END 1
 
@@ -46,6 +46,14 @@ typedef struct user
 	char name[MAX_USER_NAME];
 	time_t start_time;
 } S_User;
+
+typedef struct cmd
+{
+	char cmd[MAX_CMD_SIZE];
+	char *args[MAX_ARGS_SIZE];
+	int pipe_locs[MAX_PIPE_SIZE];
+	char pipe_types[MAX_PIPE_SIZE];
+} COMMAND;
 
 // checks if the cmd is one of the commands we defined such as exit, cd, pwd ...
 int isCustomCommand(char *cmd)
@@ -184,7 +192,7 @@ void assignUsername(S_User *user, char *newName)
 	// getting username from user for personalized experience
 	if (newName == NULL)
 	{
-		printf("please enter a new username: ");
+		printf("please enter a new username> ");
 		fgets(user->name, MAX_USER_NAME, stdin);
 	}
 	else
@@ -260,7 +268,7 @@ void execCustomCommand(char *args[], S_User *USER)
 	{
 		// if cd doesn't have arguments
 		if (args[1] == NULL)
-			printf("empty");
+			printf("");
 		else
 		{
 			// change directory and update curr_path
@@ -278,7 +286,9 @@ void execCustomCommand(char *args[], S_User *USER)
 	// if cmd == user -n => change username
 	else if (String_EqualsIgnoreCase(args[0], "user"))
 	{
-		if (String_EqualsIgnoreCase(args[1], "-i"))
+		if (args[1] == NULL)
+			printf("%s is not a valid argument. user [ -i, -n ]\n", args[1]);
+		else if (String_EqualsIgnoreCase(args[1], "-i"))
 			printUserInfo(*USER);
 		else if (String_EqualsIgnoreCase(args[1], "-n"))
 			assignUsername(USER, args[2]);

@@ -3,8 +3,11 @@
 int main()
 {
 	// set up commands
-	char *args[MAX_ARGS_SIZE];
-	char cmd[MAX_CMD_SIZE];
+	// char cmd[MAX_CMD_SIZE];
+	// char *args[MAX_ARGS_SIZE];
+	// int pipe_locs[MAX_PIPE_SIZE];
+	// char pipe_types[MAX_PIPE_SIZE];
+	COMMAND command;
 
 	// set up user and paths
 	S_User USER;
@@ -20,21 +23,21 @@ int main()
 			fputs(USER.name, stdout);
 
 		// get command from terminal and check if it's not an empty string
-		if (getInput(cmd))
+		if (getInput(command.cmd))
 		{
 			// parse the command to see what to do
 			// if pc == 0 => custom command (handled inside parse command)
 			// if pc == 1 => simple command
 			// if pc == 2 => piped command
-			int pc = parseCommand(cmd, args);
+			int pc = parseCommand(command.cmd, command.args);
 
 			if (pc == 0)
-				execCustomCommand(args, &USER);
+				execCustomCommand(command.args, &USER);
 			else if (pc == 1)
-				execCommand(args);
+				execCommand(command.args);
 			else
 			{
-				// execPipedCommand();
+				// execPipedCommand(command.args,command.pipe_locs,command.pipe_types);
 			}
 		}
 		else
