@@ -29,7 +29,7 @@ int main()
 			// if pc == 0 => custom command (handled inside parse command)
 			// if pc == 1 => simple command
 			// if pc == 2 => piped command
-			int pc = parseCommand(command.cmd, command.args);
+			int pc = parseCommand(&command);
 
 			if (pc == 0)
 				execCustomCommand(command.args, &USER);

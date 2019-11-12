@@ -76,19 +76,19 @@ int hasPipes(char *cmd)
 // returns 0 if command if exit or built in command
 // returns 1 if command doesn't have pipes
 // returns 2 if command has redirection (<,>,<<,>>) or pipes (|)
-int parseCommand(char *cmd, char **args)
+// char *cmd, char **args
+int parseCommand(COMMAND *cmd)
 {
-
 	// TODO split command based on pipes first then split each individual part based on spaces
-	int n = strlen(cmd);
+	int n = strlen(cmd->cmd);
 
-	removeWhiteSpace(cmd, n);
+	removeWhiteSpace(cmd->cmd, n);
 
 	int cmd_type = 0;
 
-	if (isCustomCommand(cmd))
+	if (isCustomCommand(cmd->cmd))
 		cmd_type = 0;
-	else if (hasPipes(cmd) >= 0)
+	else if (hasPipes(cmd->cmd) >= 0)
 		cmd_type = 2;
 	else
 		cmd_type = 1;
@@ -96,23 +96,23 @@ int parseCommand(char *cmd, char **args)
 	// clear previous args
 	for (int i = 0; i < MAX_ARGS_SIZE; i++)
 	{
-		if (args[i] == NULL)
+		if (cmd->args[i] == NULL)
 			break;
-		args[i] = NULL;
+		cmd->args[i] = NULL;
 	}
 
 	// seperate command based on spaces => String.split(" ");
-	char *ptr = String_splitFirst(cmd, " ");
+	char *ptr = String_splitFirst(cmd->cmd, " ");
 	int j = 0;
 
 	while (ptr != NULL)
 	{
-		args[j++] = ptr;
+		cmd->args[j++] = ptr;
 		ptr = String_splitFirst(NULL, " ");
 	}
 
 	// make last argument null string to signify end of array
-	args[j] = NULL;
+	cmd->args[j] = NULL;
 
 	return cmd_type; // return true
 }
