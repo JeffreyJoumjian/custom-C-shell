@@ -4,6 +4,7 @@ int main()
 {
 	// set up commands
 	char cmd[MAX_CMD_SIZE];
+	char temp[MAX_CMD_SIZE];
 	char *args[MAX_ARGS_SIZE];
 	char *piped_args[MAX_ARGS_SIZE];
 
@@ -27,7 +28,10 @@ int main()
 			// if pc == 0 => custom command (handled inside parse command)
 			// if pc == 1 => simple command
 			// if pc == 2 => piped command
-			int pc = parseCommand(cmd, args);
+			int pc = parseCommand(cmd, args, temp);
+
+			for (int i = 0; i < MAX_ARGS_SIZE && args[i] != NULL; i++)
+				printf("%s\n", args[i]);
 
 			if (pc == 0)
 				execCustomCommand(args, &USER);

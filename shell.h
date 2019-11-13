@@ -72,9 +72,9 @@ int hasPipes(char *cmd)
 			return i;
 	return -1;
 }
-int hasPipes(char c)
+int isPipeOrRedirection(char c)
 {
-	if (c[i] == '<' || c[i] == '>' || c[i] == '|')
+	if (c == '<' || c == '>' || c == '|')
 		return 1;
 	return 0;
 }
@@ -83,7 +83,7 @@ int hasPipes(char c)
 // returns 1 if command doesn't have pipes
 // returns 2 if command has redirection (<,>,<<,>>) or pipes (|)
 // char *cmd, char **args
-int parseCommand(char *cmd, char *args[])
+int parseCommand(char *cmd, char *args[], char temp[])
 {
 	// TODO split command based on pipes first then split each individual part based on spaces
 	int n = strlen(cmd);
@@ -107,9 +107,38 @@ int parseCommand(char *cmd, char *args[])
 		args[i] = NULL;
 	}
 
-	// seperate command based on spaces => String.split(" ");
-	char *ptr = String_splitFirst(cmd, " ");
+	// clear temp
+	for (int i = 0; i < MAX_CMD_SIZE; i++)
+		temp[i] = '\0';
+
 	int j = 0;
+
+	for (int i = 0; i < n; i++)
+	{
+		if (isPipeOrRedirection(cmd[i]))
+		{
+			if (i == 0 || i == n)
+			{
+				perror("Incorrect use of pipes");
+				return -1;
+			}
+
+			temp[j++] = ' ';
+			temp[j++] = cmd[i];
+			temp[j++] = ' ';
+
+			cmd_type = 2;
+		}
+
+		else if ((isascii(cmd[i]) || cmd[i] == ' ') && (cmd[i] != '\n' || cmd[i] != '\r'))
+			temp[j++] = cmd[i];
+	}
+
+	temp[j] = '\0';
+
+	// // seperate command based on spaces => String.split(" ");
+	char *ptr = String_splitFirst(temp, " ");
+	j = 0;
 
 	while (ptr != NULL)
 	{
@@ -119,6 +148,18 @@ int parseCommand(char *cmd, char *args[])
 
 	// make last argument null string to signify end of array
 	args[j] = NULL;
+	// // seperate command based on spaces => String.split(" ");
+	// char *ptr = String_splitFirst(cmd, " ");
+	// int j = 0;
+
+	// while (ptr != NULL)
+	// {
+	// 	args[j++] = ptr;
+	// 	ptr = String_splitFirst(NULL, " ");
+	// }
+
+	// // make last argument null string to signify end of array
+	// args[j] = NULL;
 
 	return cmd_type; // return true
 }
@@ -336,5 +377,8 @@ void execCommand(char *args[])
 
 void execPipedCommand(char *args[], char *piped_args[])
 {
+	char temp[MAX_CMD_SIZE];
 
+	for (int i = 0; i < MAX_CMD_SIZE; i++)
+		;
 }
