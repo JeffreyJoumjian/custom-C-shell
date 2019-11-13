@@ -30,9 +30,6 @@ int main()
 			// if pc == 2 => piped command
 			int pc = parseCommand(cmd, args, temp);
 
-			for (int i = 0; i < MAX_ARGS_SIZE && args[i] != NULL; i++)
-				printf("%s\n", args[i]);
-
 			if (pc == 0)
 				execCustomCommand(args, &USER);
 			else if (pc == 1)
