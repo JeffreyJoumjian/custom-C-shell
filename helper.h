@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <ctype.h>
 #include <time.h>
 

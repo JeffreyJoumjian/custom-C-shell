@@ -64,19 +64,24 @@ int isCustomCommand(char *cmd)
 	return 0;
 }
 
-int hasPipes(char *cmd)
+int numPipes(char **args)
 {
-	int n = strlen(cmd);
-	for (int i = 0; i < n; i++)
-		if (cmd[i] == '<' || cmd[i] == '>' || cmd[i] == '|')
-			return i;
-	return -1;
+
+	int num_pipes = 0;
+	for (int i = 0; i < MAX_ARGS_SIZE && args[i] != NULL; i++)
+		if (String_Equals(args[i], "|"))
+			num_pipes++;
+	return num_pipes;
 }
 int isPipeOrRedirection(char c)
 {
-	if (c == '<' || c == '>' || c == '|')
+	if (c == '|')
+		return 0;
+	if (c == '<')
 		return 1;
-	return 0;
+	if (c == '>')
+		return 2;
+	return -1;
 }
 
 // returns 0 if command if exit or built in command
@@ -94,8 +99,6 @@ int parseCommand(char *cmd, char *args[], char temp[])
 
 	if (isCustomCommand(cmd))
 		cmd_type = 0;
-	else if (hasPipes(cmd) >= 0)
-		cmd_type = 2;
 	else
 		cmd_type = 1;
 
@@ -115,9 +118,9 @@ int parseCommand(char *cmd, char *args[], char temp[])
 
 	for (int i = 0; i < n; i++)
 	{
-		if (isPipeOrRedirection(cmd[i]))
+		if (isPipeOrRedirection(cmd[i]) >= 0)
 		{
-			if (i == 0 || i == n)
+			if (i == 0 || i == n - 2)
 			{
 				perror("Incorrect use of pipes");
 				return -1;
@@ -148,18 +151,6 @@ int parseCommand(char *cmd, char *args[], char temp[])
 
 	// make last argument null string to signify end of array
 	args[j] = NULL;
-	// // seperate command based on spaces => String.split(" ");
-	// char *ptr = String_splitFirst(cmd, " ");
-	// int j = 0;
-
-	// while (ptr != NULL)
-	// {
-	// 	args[j++] = ptr;
-	// 	ptr = String_splitFirst(NULL, " ");
-	// }
-
-	// // make last argument null string to signify end of array
-	// args[j] = NULL;
 
 	return cmd_type; // return true
 }
@@ -375,10 +366,85 @@ void execCommand(char *args[])
 	}
 }
 
-void execPipedCommand(char *args[], char *piped_args[])
+int getNextPipe(char *args[], int start)
 {
-	char temp[MAX_CMD_SIZE];
+	int i;
+	for (i = start; i < MAX_ARGS_SIZE && args[i] != NULL; i++)
+		if (String_Equals(args[i], "|"))
+			return i;
+	return i;
+	// will never return -1, this is just to avoid warnings
+}
 
-	for (int i = 0; i < MAX_CMD_SIZE; i++)
-		;
+void getArgsForCurrentExec(char *args[], char *piped_args[], int start, int end)
+{
+	// clear previous piped args
+	for (int i = 0; i < MAX_ARGS_SIZE && piped_args[i] != NULL; i++)
+		piped_args[i] = NULL;
+
+	int j = 0;
+	for (int i = start; i < end || args[i + 1] == NULL; i++)
+		piped_args[j++] = args[i];
+
+	piped_args[j] = NULL;
+}
+
+void execPipedCommand(char *args[], char *piped_args[], S_User *user)
+{
+
+	int start = 0, end = getNextPipe(args, start);
+
+	int fd[2];
+	int fdd = 0; /* Backup */
+
+	int num_cmds = numPipes(args) + 1;
+
+	for (int i = 0; i < num_cmds; i++)
+	{
+		pipe(fd);
+
+		pid_t pid = fork();
+
+		if (pid == 0)
+		{
+			getArgsForCurrentExec(args, piped_args, start, end);
+
+			dup2(fdd, 0);
+			if (i + 1 != num_cmds)
+			{
+				dup2(fd[1], 1);
+			}
+			close(fd[0]);
+
+			if (isCustomCommand(piped_args[0]))
+			{
+				execCustomCommand(args, user);
+				exit(0);
+			}
+
+			else if (execvp(piped_args[0], piped_args) < 0)
+			{
+				printf("error in child %d", i);
+				exit(1);
+			}
+		}
+		if (pid > 0)
+		{
+			wait(NULL);
+			close(fd[WRITE_END]);
+			fdd = fd[READ_END];
+
+			start = end + 1;
+			end = getNextPipe(args, start);
+		}
+		if (pid < 0)
+		{
+			perror("couldn't create execution environment.\n");
+			exit(1);
+		}
+	}
+	close(fd[READ_END]);
+	close(fd[WRITE_END]);
+	// munmap(start, sizeof(int));
+	// munmap(end, sizeof(int));
 }
