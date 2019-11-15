@@ -160,7 +160,8 @@ void setUpPaths(S_User *user)
 	if (chdir("home") < 0)
 	{
 		perror("User does not have home directory");
-		exit(1);
+		mkdir("home", 0770);
+		mkdir("home/desktop", 0770);
 	}
 
 	getcwd(user->HOME_DIR, MAX_PATH_SIZE);
@@ -420,7 +421,7 @@ void execPipedCommand(char *args[], char *piped_args[], S_User *user)
 			// else exec normal command
 			else if (execvp(piped_args[0], piped_args) < 0)
 			{
-				printf("error in child %d", i);
+				printf("error while executing command %d", i);
 				exit(1);
 			}
 		}
@@ -435,7 +436,7 @@ void execPipedCommand(char *args[], char *piped_args[], S_User *user)
 		}
 		if (pid < 0)
 		{
-			perror("couldn't create execution environment.\n");
+			perror("failed to create child.\n");
 			exit(1);
 		}
 	}
