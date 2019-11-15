@@ -2,12 +2,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/types.h>
+#include <ctype.h>
 
 #include <stdbool.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/mman.h>
-#include <ctype.h>
 #include <time.h>
 
 int String_Equals(char *str1, char *str2)
@@ -75,4 +74,10 @@ void removeWhiteSpace(char *cmd, int n)
 
 	// redundant check to be sure
 	String_splitFirst(cmd, "\n\r");
+}
+
+void clearStringArray(char *args[], int size)
+{
+	for (int i = 0; i < size && args[i] != NULL; i++)
+		args[i] = NULL;
 }

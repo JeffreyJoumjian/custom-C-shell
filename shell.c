@@ -12,6 +12,8 @@ int main()
 	S_User USER;
 	setUpUser(&USER);
 
+	printf("use \"help\" command for instructions\n");
+
 	while (1)
 	{
 		// shell $ username:

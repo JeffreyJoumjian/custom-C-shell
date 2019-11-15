@@ -1,4 +1,3 @@
-
 #include "helper.h"
 
 // for server
@@ -47,14 +46,6 @@ typedef struct user
 	time_t start_time;
 } S_User;
 
-typedef struct cmd
-{
-	char cmd[MAX_CMD_SIZE];
-	char *args[MAX_ARGS_SIZE];
-	int pipe_locs[MAX_PIPE_SIZE];
-	char pipe_types[MAX_PIPE_SIZE];
-} COMMAND;
-
 // checks if the cmd is one of the commands we defined such as exit, cd, pwd ...
 int isCustomCommand(char *cmd)
 {
@@ -73,20 +64,20 @@ int numPipes(char **args)
 			num_pipes++;
 	return num_pipes;
 }
-int isPipeOrRedirection(char c)
+int isPipe(char c)
 {
 	if (c == '|')
 		return 0;
-	if (c == '<')
-		return 1;
-	if (c == '>')
-		return 2;
+	// if (c == '<')
+	// 	return 1;
+	// if (c == '>')
+	// 	return 2;
 	return -1;
 }
 
 // returns 0 if command if exit or built in command
 // returns 1 if command doesn't have pipes
-// returns 2 if command has redirection (<,>,<<,>>) or pipes (|)
+// returns 2 if command has pipes (|)
 // char *cmd, char **args
 int parseCommand(char *cmd, char *args[], char temp[])
 {
@@ -103,12 +94,7 @@ int parseCommand(char *cmd, char *args[], char temp[])
 		cmd_type = 1;
 
 	// clear previous args
-	for (int i = 0; i < MAX_ARGS_SIZE; i++)
-	{
-		if (args[i] == NULL)
-			break;
-		args[i] = NULL;
-	}
+	clearStringArray(args, MAX_ARGS_SIZE);
 
 	// clear temp
 	for (int i = 0; i < MAX_CMD_SIZE; i++)
@@ -118,7 +104,7 @@ int parseCommand(char *cmd, char *args[], char temp[])
 
 	for (int i = 0; i < n; i++)
 	{
-		if (isPipeOrRedirection(cmd[i]) >= 0)
+		if (isPipe(cmd[i]) >= 0)
 		{
 			if (i == 0 || i == n - 2)
 			{
@@ -268,7 +254,7 @@ void help()
 		"\t-n <new_username> (changes the username of the current user)\n"
 		"\t-i (print user info)\n"
 		"6 - ls, ps, rm ... (supports all UNIX commands with their arguments)\n"
-		"7 - pipe support coming soon\n");
+		"7 - pipe support for up to 21 commands\n");
 	puts("\n*** Jeffrey Joumjian - Maria Kantardjian - Reem Saado (alphabetically) ***\n");
 }
 
@@ -373,14 +359,13 @@ int getNextPipe(char *args[], int start)
 		if (String_Equals(args[i], "|"))
 			return i;
 	return i;
-	// will never return -1, this is just to avoid warnings
 }
 
+// takes start and end indices and copies the commands between start & end from args to piped_args
 void getArgsForCurrentExec(char *args[], char *piped_args[], int start, int end)
 {
 	// clear previous piped args
-	for (int i = 0; i < MAX_ARGS_SIZE && piped_args[i] != NULL; i++)
-		piped_args[i] = NULL;
+	clearStringArray(piped_args, MAX_PIPE_SIZE);
 
 	int j = 0;
 	for (int i = start; i < end || args[i + 1] == NULL; i++)
@@ -392,36 +377,47 @@ void getArgsForCurrentExec(char *args[], char *piped_args[], int start, int end)
 void execPipedCommand(char *args[], char *piped_args[], S_User *user)
 {
 
-	int start = 0, end = getNextPipe(args, start);
+	/* 
+	start & end indices to get the section of commands from args to execute
+	no need for shared memory because at every pipe the values are being updated in the parent
+	and the new forked child is spawning with this new updated values.
+	*/
+	int start = 0;
+	int end = getNextPipe(args, start);
 
 	int fd[2];
-	int fdd = 0; /* Backup */
+	int fdd = 0;
 
 	int num_cmds = numPipes(args) + 1;
 
+	// for every command in args
 	for (int i = 0; i < num_cmds; i++)
 	{
 		pipe(fd);
 
-		pid_t pid = fork();
+		pid_t pid = fork(); // fork child to execute command
 
 		if (pid == 0)
 		{
-			getArgsForCurrentExec(args, piped_args, start, end);
+			getArgsForCurrentExec(args, piped_args, start, end); // get the cmds between args[start] -> args[end] to execute them
 
-			dup2(fdd, 0);
+			dup2(fdd, READ_END); // get input from pipe instead of stdin
 			if (i + 1 != num_cmds)
 			{
-				dup2(fd[1], 1);
+				dup2(fd[WRITE_END], WRITE_END); // write output to pipe instead of stdout
 			}
-			close(fd[0]);
+			close(fd[READ_END]);
 
+			// we must first check if it's a custom command
 			if (isCustomCommand(piped_args[0]))
 			{
 				execCustomCommand(args, user);
 				exit(0);
 			}
 
+			// check if it has redirection => if so change the dups to input/output from file (to be implemented for phase 2)
+
+			// else exec normal command
 			else if (execvp(piped_args[0], piped_args) < 0)
 			{
 				printf("error in child %d", i);
@@ -445,6 +441,4 @@ void execPipedCommand(char *args[], char *piped_args[], S_User *user)
 	}
 	close(fd[READ_END]);
 	close(fd[WRITE_END]);
-	// munmap(start, sizeof(int));
-	// munmap(end, sizeof(int));
 }
