@@ -1,3 +1,5 @@
 a.out
 client.out
 test.c
+client.c
+server.c

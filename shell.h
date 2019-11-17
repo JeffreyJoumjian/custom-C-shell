@@ -69,17 +69,12 @@ int isPipe(char c)
 {
 	if (c == '|')
 		return 0;
-	// if (c == '<')
-	// 	return 1;
-	// if (c == '>')
-	// 	return 2;
 	return -1;
 }
 
 // returns 0 if command if exit or built in command
 // returns 1 if command doesn't have pipes
 // returns 2 if command has pipes (|)
-// char *cmd, char **args
 int parseCommand(char *cmd, char *args[], char temp[])
 {
 	// TODO split command based on pipes first then split each individual part based on spaces
@@ -103,6 +98,7 @@ int parseCommand(char *cmd, char *args[], char temp[])
 
 	int j = 0;
 
+	// go over the string and insert the appropriate spaces to split the command based on spaces later
 	for (int i = 0; i < n; i++)
 	{
 		if (isPipe(cmd[i]) >= 0)
@@ -126,7 +122,7 @@ int parseCommand(char *cmd, char *args[], char temp[])
 
 	temp[j] = '\0';
 
-	// // seperate command based on spaces => String.split(" ");
+	// seperate command based on spaces => String.split(" ");
 	char *ptr = String_splitFirst(temp, " ");
 	j = 0;
 
@@ -193,7 +189,7 @@ void pathBack(S_User *user, char *req_path)
 
 	for (int i = 0; i < j; i++)
 	{
-		// can't go up if already in user directory
+		// can't go up if already in user's home directory
 		if (String_Equals(paths[i], "..") && isHomeDir(user))
 		{
 			perror("Cannot go further than home directory");
@@ -258,7 +254,7 @@ void help()
 		"\t-i (print user info)\n"
 		"6 - ls, ps, rm ... (supports all UNIX commands with their arguments)\n"
 		"7 - pipe support for up to 21 commands\n");
-	puts("\n*** Jeffrey Joumjian - Maria Kantardjian - Reem Saado (alphabetically) ***\n");
+	puts("\n*** Jeffrey Joumjian - Maria Kantardjian - Reem Saado ***\n");
 }
 
 void printUserInfo(S_User user)
@@ -358,6 +354,7 @@ void execCommand(char *args[])
 	}
 }
 
+// get the index of the next pipe or size of args if there is no pipe
 int getNextPipe(char *args[], int start)
 {
 	int i;
@@ -416,7 +413,7 @@ void execPipedCommand(char *args[], char *piped_args[], char temp[], S_User *use
 			}
 			close(fd[WRITE_END]);
 
-			// we must first check if it's a custom command
+			// first check if it's a custom command
 			if (isCustomCommand(piped_args[0]))
 			{
 				execCustomCommand(args, user);
@@ -424,21 +421,21 @@ void execPipedCommand(char *args[], char *piped_args[], char temp[], S_User *use
 			}
 			else
 			{
-				// this is to make sure that ps buffer output correctly
-				if (String_EqualsIgnoreCase(piped_args[0], "ps") && piped_args[1] != NULL && String_EqualsIgnoreCase(piped_args[1], "aux"))
+				// this is to make sure that ps buffers output correctly
+				if (String_EqualsIgnoreCase(piped_args[0], "ps") && String_EqualsIgnoreCase(piped_args[1], "aux"))
 				{
+					piped_args[1] = "aux";
 					for (int j = 2; j < MAX_ARGS_SIZE; j++)
 					{
 						if (piped_args[j] == NULL)
 						{
 							piped_args[j] = "--cols";
-							piped_args[j + 1] = "1000000000";
+							piped_args[j + 1] = "1000000000000000";
 							piped_args[j + 2] = NULL;
 							break;
 						}
 					}
 				}
-				// check if it has redirection => if so change the dups to input/output from file (to be implemented for phase 2)
 
 				// else exec normal command
 				if (execvp(piped_args[0], piped_args) < 0)
@@ -465,9 +462,4 @@ void execPipedCommand(char *args[], char *piped_args[], char temp[], S_User *use
 	}
 	close(fd[READ_END]);
 	close(fd[WRITE_END]);
-}
-
-void execRedirectedCommand(char *args[], char *red_args[])
-{
-	// for()
 }
