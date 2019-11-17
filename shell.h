@@ -15,6 +15,7 @@
 
 // this is used later on to know if we have a custom command (cleaner code purposes)
 const char *CUSTOM_CMDS[] = {"exit", "user", "cd", "pwd", "help"};
+const char *COLUMN_WIDTH[] = {"--cols", "100000000"};
 const int CSTM_CMDS_SIZE = sizeof(CUSTOM_CMDS) / sizeof(char *);
 
 // for server
@@ -131,6 +132,7 @@ int parseCommand(char *cmd, char *args[], char temp[])
 
 	while (ptr != NULL)
 	{
+
 		args[j++] = ptr;
 		ptr = String_splitFirst(NULL, " ");
 	}
@@ -420,19 +422,35 @@ void execPipedCommand(char *args[], char *piped_args[], char temp[], S_User *use
 				execCustomCommand(args, user);
 				exit(0);
 			}
-
-			// check if it has redirection => if so change the dups to input/output from file (to be implemented for phase 2)
-
-			// else exec normal command
-			else if (execvp(piped_args[0], piped_args) < 0)
+			else
 			{
-				printf("error while executing command %d", i);
-				exit(1);
+				// this is to make sure that ps buffer output correctly
+				if (String_EqualsIgnoreCase(piped_args[0], "ps") && piped_args[1] != NULL && String_EqualsIgnoreCase(piped_args[1], "aux"))
+				{
+					for (int j = 2; j < MAX_ARGS_SIZE; j++)
+					{
+						if (piped_args[j] == NULL)
+						{
+							piped_args[j] = "--cols";
+							piped_args[j + 1] = "1000000000";
+							piped_args[j + 2] = NULL;
+							break;
+						}
+					}
+				}
+				// check if it has redirection => if so change the dups to input/output from file (to be implemented for phase 2)
+
+				// else exec normal command
+				if (execvp(piped_args[0], piped_args) < 0)
+				{
+					printf("error while executing command %d", i);
+					exit(1);
+				}
 			}
 		}
 		if (pid > 0)
 		{
-			wait(NULL);
+			waitpid(pid, NULL, 0);
 			close(fd[WRITE_END]);
 			fdd = fd[READ_END];
 
