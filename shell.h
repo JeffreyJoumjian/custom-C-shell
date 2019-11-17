@@ -285,6 +285,7 @@ int getInput(char *cmd)
 
 void execCustomCommand(char *args[], S_User *USER)
 {
+	printf(YEL);
 
 	if (String_EqualsIgnoreCase(args[0], "exit"))
 		exit(0);
@@ -306,7 +307,7 @@ void execCustomCommand(char *args[], S_User *USER)
 
 	// 	// print working directory
 	else if (String_EqualsIgnoreCase(args[0], "pwd"))
-		printf("%s\n", USER->curr_path);
+		printf("%s\n\n", USER->curr_path);
 
 	// if cmd == user -n => change username
 	else if (String_EqualsIgnoreCase(args[0], "user"))
@@ -323,6 +324,8 @@ void execCustomCommand(char *args[], S_User *USER)
 
 	else if (String_EqualsIgnoreCase(args[0], "help"))
 		help();
+
+	printf(RESET);
 }
 
 void execCommand(char *args[])
@@ -375,7 +378,7 @@ void getArgsForCurrentExec(char *args[], char *piped_args[], int start, int end)
 	piped_args[j] = NULL;
 }
 
-void execPipedCommand(char *args[], char *piped_args[], S_User *user)
+void execPipedCommand(char *args[], char *piped_args[], char temp[], S_User *user)
 {
 
 	/* 
@@ -402,12 +405,14 @@ void execPipedCommand(char *args[], char *piped_args[], S_User *user)
 		{
 			getArgsForCurrentExec(args, piped_args, start, end); // get the cmds between args[start] -> args[end] to execute them
 
+			close(fd[READ_END]);
 			dup2(fdd, READ_END); // get input from pipe instead of stdin
 			if (i + 1 != num_cmds)
 			{
 				dup2(fd[WRITE_END], WRITE_END); // write output to pipe instead of stdout
+				dup2(fd[WRITE_END], 2);			// write error to pipe instead of stdout
 			}
-			close(fd[READ_END]);
+			close(fd[WRITE_END]);
 
 			// we must first check if it's a custom command
 			if (isCustomCommand(piped_args[0]))
@@ -442,4 +447,9 @@ void execPipedCommand(char *args[], char *piped_args[], S_User *user)
 	}
 	close(fd[READ_END]);
 	close(fd[WRITE_END]);
+}
+
+void execRedirectedCommand(char *args[], char *red_args[])
+{
+	// for()
 }

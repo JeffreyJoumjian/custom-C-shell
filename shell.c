@@ -8,21 +8,32 @@ int main()
 	char *args[MAX_ARGS_SIZE];		 // string[] to contain the individual parts of each command
 	char *piped_args[MAX_ARGS_SIZE]; // string[] to be used for pipe execution
 
+	printf(YEL);
 	// set up user and paths
 	S_User USER;
 	setUpUser(&USER);
 
-	printf("use \"help\" command for instructions\n");
+	printf("\nuse \"help\" command for instructions\n\n");
 
 	while (1)
 	{
+		printf(RESET);
 		// shell $ username:
-		fputs(SHELL_INDICATOR, stdout);
+		// fputs(SHELL_INDICATOR, stdout);
+		// printf(RESET);
 
 		// if username isn't empty
 		if (USER.name[0] != '\n')
-			fputs(USER.name, stdout);
+		{
+			printf(RED "%s", USER.name);
+			printf(RESET);
+		}
+		// fputs(USER.name, stdout);
 
+		// print username and $
+		printf(YEL "~%s ", USER.curr_path);
+		printf(RESET);
+		printf(GRN "%s", SHELL_INDICATOR RESET);
 		// get command from terminal and check if it's not an empty string
 		if (getInput(cmd))
 		{
@@ -35,10 +46,12 @@ int main()
 			if (pc == 0)
 				execCustomCommand(args, &USER);
 			else if (pc == 1)
+			{
 				execCommand(args);
+			}
 			else if (pc == 2)
 			{
-				execPipedCommand(args, piped_args, &USER);
+				execPipedCommand(args, piped_args, temp, &USER);
 			}
 		}
 		else
