@@ -11,7 +11,7 @@ int main()
 	printf(YEL);
 	// set up user and paths
 	S_User USER;
-	setUpUser(&USER);
+	setUpUser(&USER, stdin);
 
 	printf("\nuse \"help\" command for instructions\n\n");
 
@@ -35,7 +35,7 @@ int main()
 		printf(RESET);
 		printf(GRN "%s", SHELL_INDICATOR RESET);
 		// get command from terminal and check if it's not an empty string
-		if (getInput(cmd))
+		if (getInput(cmd, NULL))
 		{
 			// parse the command to see what to do
 			// if pc == 0 => custom command (handled inside parse command)
@@ -44,14 +44,14 @@ int main()
 			int pc = parseCommand(cmd, args, temp);
 
 			if (pc == 0)
-				execCustomCommand(args, &USER);
+				execCustomCommand(args, &USER, NULL);
 			else if (pc == 1)
 			{
-				execCommand(args);
+				execCommand(args, NULL);
 			}
 			else if (pc == 2)
 			{
-				execPipedCommand(args, piped_args, temp, &USER);
+				execPipedCommand(args, piped_args, temp, &USER, NULL);
 			}
 		}
 		else

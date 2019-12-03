@@ -33,33 +33,69 @@ int main()
 		perror("Error establishing socket connection\n");
 		exit(1);
 	}
+	// client is connected if here
+	CLIENT client = {};
 
-	// CLIENT IS NOW CONNECTED
-	CLIENT client;
-	// char * input = &client.input;
+	// greet client by asking for username
+	printf("%s", get_username);
+	fgets(client.user.name, MAX_USER_NAME, stdin);
+	write(client_socket, client.user.name, MAX_USER_NAME);
 
-	// greet client
-	printf("%s", CLIENT_GREET);
+	// set up client properties
+	setUpUser(&client.user, NULL);
 
-	while (1)
+	// while client is still connected
+	while (client_socket > 0)
 	{
-		// get client input
-		if (fgets(client.input, MAX_LINE, stdin) > 0)
+
+		if (client_socket > 0)
 		{
-			// remove whitespace
-			strtok(client.input, "\n\r");
+			// print username and $
+			// if username isn't empty
+			if (client.user.name[0] != '\n')
+			{
+				printf(RED "%s", client.user.name);
+				printf(RESET);
+			}
+			printf(YEL "~%s ", client.user.curr_path);
+			printf(RESET);
+			printf(GRN "%s", SHELL_INDICATOR RESET);
 
-			// send client input to server
-			write(client_socket, client.input, sizeof(client.input));
+			// read from client
+			while (fgets(client.cmd, MAX_LINE, stdin))
+			{
+				client.cmd[strlen(client.cmd) - 1] = '\0';
+				if (strlen(client.cmd) > 0)
+					break;
+				// print username and $
+				printf(YEL "~%s ", client.user.curr_path);
+				printf(RESET);
+				printf(GRN "%s", SHELL_INDICATOR RESET);
+			}
 
-			if (strcasecmp(client.input, "exit") == 0)
+			// if input not empty
+			// if exit => disconnect from server
+			if (String_EqualsIgnoreCase(client.cmd, "exit"))
+			{
+				close(client_socket);
 				break;
+			}
+			if (write(client_socket, client.cmd, MAX_CMD_SIZE) < 0)
+				perror("Error writing to server.\n");
 
-			// get response from server
-			read(client_socket, client.res, sizeof(client.res));
-			printf("%s\n", client.res);
+			// read response from server
+			// if (read(client_socket, client.temp, MAX_LINE) < 0)
+			// 	perror("Error reading from server.\n");
+			char x;
+			int i = 0;
+			while (i++ < 4)
+			{
+				int n = read(client_socket, client.temp, MAX_LINE);
+				if (i == 4)
+					printf("%s", client.temp);
+			}
 		}
 	}
-
 	close(client_socket);
+	return 0;
 }

@@ -12,7 +12,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	// define server address abd it's properties
+	// define server address and it's properties
 	struct sockaddr_in server_address;
 	server_address.sin_family = AF_INET;
 	server_address.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -32,7 +32,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	int numClients = 0;
+	int num_clients = 0;
 	int client_socket = 0;
 
 	printf("Listening for connections:\n");
@@ -44,33 +44,69 @@ int main(int argc, char **argv)
 			continue;
 
 		// create new client and set up properties
-		CLIENT client;
-		client.id = ++numClients;
-		strcpy(client.res, CLIENT_RESPONSE);
+		CLIENT client = {};
+		S_User user = {};
+
+		client.user = user;
+		client.id = ++num_clients;
+		setUpUser(&client.user, NULL);
+		time_t _time;
 
 		// log which client is connected
-		printf("client %d has connected to the server\n", client.id);
+		_time = time(NULL);
+		char time_str[30];
+		String_copy(time_str, ctime(&_time));
+		String_splitFirst(time_str, "\n");
 
-		while (1)
+		read(client_socket, client.user.name, MAX_USER_NAME);
+		String_splitFirst(client.user.name, "\n");
+
+		printf("Client [%d]: {%s} has logged in at time {%s}\n", client.id, client.user.name, time_str);
+
+		// while client is still connected
+		while (client_socket > 0)
 		{
-
-			// read cmd from client unless it's exit
-			if (read(client_socket, client.input, sizeof(client.input)) > 0)
-				printf("\tclient %d:\n\t\t%s\n", client.id, client.input);
-
-			if (strcasecmp(client.input, "exit") == 0)
+			// read from client
+			if (client_socket > 0)
 			{
-				printf("client %d terminated connection \n", client.id);
-				break;
-			}
-			// send response to client
-			strcat(client.res, client.input);
-			write(client_socket, client.res, sizeof(client.res));
+				if (write(client_socket, &client, sizeof(client)) < 0)
+					perror("Error writing to client.\n");
 
-			// clear client response and input to avoid conflicts
-			strcpy(client.res, CLIENT_RESPONSE);
-			strcpy(client.input, "\0");
+				if (read(client_socket, client.cmd, MAX_CMD_SIZE) <= 0)
+				{
+					printf("Client [%d] terminated connection\n", client.id);
+					close(client_socket);
+					break;
+				}
+
+				printf("\tClient {%d}: %s\n", client.id, client.cmd);
+
+				bzero(stdin, sizeof(stdin));
+				bzero(stderr, sizeof(stderr));
+
+				// exec command
+				// parse the command to see what to do
+				// if pc == 0 => custom command (handled inside parse command)
+				// if pc == 1 => simple command
+				// if pc == 2 => piped command
+				int pc = parseCommand(client.cmd, client.args, client.temp);
+
+				if (pc == 0)
+					execCustomCommand(client.args, &client.user, &client_socket);
+				else if (pc == 1)
+				{
+					execCommand(client.args, &client_socket);
+				}
+				else if (pc == 2)
+				{
+					execPipedCommand(client.args, client.piped_args, client.temp, &client.user, &client_socket);
+				}
+
+				// if (write(client_socket, client.cmd, MAX_CMD_SIZE) < 0)
+				// 	perror("Error writing to client.\n");
+			}
 		}
 		close(client_socket);
 	}
+	close(server_socket);
 }

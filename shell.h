@@ -15,7 +15,6 @@
 
 // this is used later on to know if we have a custom command (cleaner code purposes)
 const char *CUSTOM_CMDS[] = {"exit", "user", "cd", "pwd", "help"};
-const char *COLUMN_WIDTH[] = {"--cols", "100000000"};
 const int CSTM_CMDS_SIZE = sizeof(CUSTOM_CMDS) / sizeof(char *);
 
 // for server
@@ -25,27 +24,33 @@ const int CSTM_CMDS_SIZE = sizeof(CUSTOM_CMDS) / sizeof(char *);
 #define SERVER_IP "127.0.0.1"
 
 // for client
-#define CLIENT_GREET "you have reached the server, please send an input: \0"
-#define CLIENT_RESPONSE "your response was: \0"
+char get_username[] = "please enter a new username> ";
 
-typedef struct client
-{
-	int id;
-	char input[MAX_LINE];
-	char res[MAX_LINE];
-} CLIENT;
-
-typedef struct user
+typedef struct
 {
 	// paths
-	const char SHELL_DIR[MAX_PATH_SIZE];
+	char SHELL_DIR[MAX_PATH_SIZE];
 	char HOME_DIR[MAX_PATH_SIZE];
 	char curr_path[MAX_PATH_SIZE];
 
 	// user info
 	char name[MAX_USER_NAME];
 	time_t start_time;
+
 } S_User;
+
+typedef struct
+{
+	int id;
+	char cmd[MAX_CMD_SIZE];
+	char temp[MAX_LINE];
+	char *args[MAX_ARGS_SIZE];
+	char *piped_args[MAX_ARGS_SIZE];
+
+	S_User user;
+	int socket;
+
+} CLIENT;
 
 // checks if the cmd is one of the commands we defined such as exit, cd, pwd ...
 int isCustomCommand(char *cmd)
@@ -77,7 +82,6 @@ int isPipe(char c)
 // returns 2 if command has pipes (|)
 int parseCommand(char *cmd, char *args[], char temp[])
 {
-	// TODO split command based on pipes first then split each individual part based on spaces
 	int n = strlen(cmd);
 
 	removeWhiteSpace(cmd, n);
@@ -158,8 +162,8 @@ void setUpPaths(S_User *user)
 	if (chdir("home") < 0)
 	{
 		perror("User does not have home directory");
-		mkdir("home", 0770);
-		mkdir("home/desktop", 0770);
+		// mkdir("home", 0770);
+		// mkdir("home/desktop", 0770);
 	}
 
 	getcwd(user->HOME_DIR, MAX_PATH_SIZE);
@@ -210,13 +214,22 @@ void pathForward(S_User *user, char *next)
 	updateCurrentPath(user);
 }
 
-void assignUsername(S_User *user, char *newName)
+void assignUsername(S_User *user, char *newName, void *socket)
 {
 	// getting username from user for personalized experience
 	if (newName == NULL)
 	{
-		printf("please enter a new username> ");
-		fgets(user->name, MAX_USER_NAME, stdin);
+
+		if (socket == NULL)
+		{
+			printf("%s", get_username);
+			fgets(user->name, MAX_USER_NAME, stdin);
+		}
+		// else
+		// {
+		// 	write(*(int *)socket, get_username, sizeof(get_username));
+		// 	read(*(int *)socket, user->name, sizeof(user->name));
+		// }
 	}
 	else
 	{
@@ -230,60 +243,83 @@ void assignUsername(S_User *user, char *newName)
 		String_concat(user->name, ": ");
 }
 
-void setUpUser(S_User *USER)
+// input mode == 0 => stdin
+// input mode == 1 => socket
+void setUpUser(S_User *USER, void *socket)
 {
 	time(&USER->start_time); // start user time
-	assignUsername(USER, NULL);
+
+	if (socket == NULL)
+		assignUsername(USER, NULL, stdin);
+	else
+		assignUsername(USER, NULL, socket);
 	setUpPaths(USER);
 }
 
-void help()
+void help(char *res)
 {
-	puts("\n*** WELCOME TO THE HELP GUIDE ***\n");
-	puts("----------------------------------\n");
-
-	puts("Supported Commands:\n");
-	puts("-------------------\n");
-	puts(
-		"1 - help (prints the help manual for the shell)\n"
-		"2 - exit (exits the shell)\n"
-		"3 - cd <dst_path> (used to change the working directory)\n"
-		"4 - pwd (prints the current working directory of the user <username/home/...>)\n"
-		"5 - user [ -i, -n ]\n"
-		"\t-n <new_username> (changes the username of the current user)\n"
-		"\t-i (print user info)\n"
-		"6 - ls, ps, rm ... (supports all UNIX commands with their arguments)\n"
-		"7 - pipe support for up to 21 commands\n");
-	puts("\n*** Jeffrey Joumjian - Maria Kantardjian - Reem Saado ***\n");
+	snprintf(res, MAX_LINE,
+			 "\n*** WELCOME TO THE HELP GUIDE ***\n"
+			 "----------------------------------\n"
+			 "Supported Commands:\n"
+			 "-------------------\n"
+			 "1 - help (prints the help manual for the shell)\n"
+			 "2 - exit (exits the shell)\n"
+			 "3 - cd <dst_path> (used to change the working directory)\n"
+			 "4 - pwd (prints the current working directory of the user <username/home/...>)\n"
+			 "5 - user [ -i, -n ]\n"
+			 "\t-n <new_username> (changes the username of the current user)\n"
+			 "\t-i (print user info)\n"
+			 "6 - ls, ps, rm ... (supports all UNIX commands with their arguments)\n"
+			 "7 - pipe support for up to 21 commands\n"
+			 "\n*** Jeffrey Joumjian - Maria Kantardjian - Reem Saado ***\n");
 }
 
-void printUserInfo(S_User user)
+void printUserInfo(S_User user, char *res)
 {
-	printf("user: %s\n", user.name);
-	printf("home dir: %s\n", user.HOME_DIR);
-	printf("current dir: %s\n", user.curr_path);
+
+	// snprintf(res, sizeof(res), "user: %s\n", user.name);
+	// snprintf(res, sizeof(res), "home dir: %s\n", user.HOME_DIR);
+	// snprintf(res, sizeof(res), "current dir: %s\n", user.curr_path);
 
 	time_t current_time;
 	time(&current_time);
-	printf("time elapsed: %.3fs\n", (double)difftime(current_time, user.start_time));
+	snprintf(res, MAX_LINE,
+			 "user: %s\n"
+			 "home dir: %s\n"
+			 "current dir: %s\n"
+			 "time elapsed: %.3fs\n",
+			 user.name, user.HOME_DIR, user.curr_path, (double)difftime(current_time, user.start_time));
 }
 
 // get input from user and put it in the cmd string
-int getInput(char *cmd)
+int getInput(char *cmd, void *socket)
 {
 
 	char buff[MAX_CMD_SIZE];
-	if (fgets(buff, MAX_CMD_SIZE, stdin) > 0 && buff[0] != '\n')
+
+	if (socket == NULL)
 	{
-		String_copy(cmd, buff);
-		return 1; // return true if successful scan
+		if (fgets(buff, MAX_CMD_SIZE, stdin) > 0 && buff[0] != '\n')
+		{
+			String_copy(cmd, buff);
+			return 1; // return true if successful scan
+		}
 	}
+	else
+	{
+		if (read(*(int *)socket, buff, MAX_CMD_SIZE) > 0 && buff[0] != '\n')
+		{
+			String_copy(cmd, buff);
+			return 1; // return true if successful scan
+		}
+	}
+
 	return 0; // return false if empty
 }
 
-void execCustomCommand(char *args[], S_User *USER)
+void execCustomCommand(char *args[], S_User *USER, void *socket)
 {
-	printf(YEL);
 
 	if (String_EqualsIgnoreCase(args[0], "exit"))
 		exit(0);
@@ -302,33 +338,44 @@ void execCustomCommand(char *args[], S_User *USER)
 				pathForward(USER, args[1]);
 		}
 	}
-
-	// 	// print working directory
-	else if (String_EqualsIgnoreCase(args[0], "pwd"))
-		printf("%s\n\n", USER->curr_path);
-
-	// if cmd == user -n => change username
-	else if (String_EqualsIgnoreCase(args[0], "user"))
+	else
 	{
-		if (args[1] == NULL)
-			printf("%s is not a valid argument. user [ -i, -n ]\n", args[1]);
-		else if (String_EqualsIgnoreCase(args[1], "-i"))
-			printUserInfo(*USER);
-		else if (String_EqualsIgnoreCase(args[1], "-n"))
-			assignUsername(USER, args[2]);
-		else
-			printf("%s is not a valid argument. user [ -i, -n ]\n", args[1]);
+		int wr = socket == NULL ? 1 : *(int *)socket;
+		int wre = socket == NULL ? 1 : *(int *)socket;
+		char res[MAX_LINE];
+		// if (socket != NULL)
+		// {
+		// 	int client_socket = *(int *)socket;
+		// 	// dup2(client_socket, 1);
+		// 	// dup2(client_socket, 2);
+		// }
+		// print working directory
+		if (String_EqualsIgnoreCase(args[0], "pwd"))
+			snprintf(res, sizeof(res), "%s\n\n", USER->curr_path);
+
+		// if cmd == user -n => change username
+		else if (String_EqualsIgnoreCase(args[0], "user"))
+		{
+			if (args[1] == NULL)
+				snprintf(res, sizeof(res), "%s is not a valid argument. user [ -i, -n ]\n", args[1]);
+			else if (String_EqualsIgnoreCase(args[1], "-i"))
+				printUserInfo(*USER, res);
+			else if (String_EqualsIgnoreCase(args[1], "-n"))
+				assignUsername(USER, args[2], stdin);
+			else
+				snprintf(res, sizeof(res), "%s is not a valid argument. user [ -i, -n ]\n", args[1]);
+		}
+
+		else if (String_EqualsIgnoreCase(args[0], "help"))
+			help(res);
+		write(wr, res, sizeof(res));
 	}
-
-	else if (String_EqualsIgnoreCase(args[0], "help"))
-		help();
-
 	printf(RESET);
 }
 
-void execCommand(char *args[])
+void execCommand(char *args[], void *socket)
 {
-
+	int client_socket = *(int *)socket;
 	// create child to run command
 	pid_t pid = fork();
 
@@ -340,6 +387,12 @@ void execCommand(char *args[])
 
 	else if (pid == 0)
 	{
+		if (socket != NULL)
+		{
+			dup2(client_socket, 1);
+			dup2(client_socket, 2);
+			close(client_socket);
+		}
 		if (execvp(args[0], args) < 0)
 		{
 			perror("Command not found\n");
@@ -377,8 +430,13 @@ void getArgsForCurrentExec(char *args[], char *piped_args[], int start, int end)
 	piped_args[j] = NULL;
 }
 
-void execPipedCommand(char *args[], char *piped_args[], char temp[], S_User *user)
+void execPipedCommand(char *args[], char *piped_args[], char temp[], S_User *user, void *socket)
 {
+
+	int client_socket = *(int *)socket;
+
+	// int wr = socket == NULL ? WRITE_END : client_socket;
+	// int wre = socket == NULL ? 2 : client_socket;
 
 	/* 
 	start & end indices to get the section of commands from args to execute
@@ -402,40 +460,48 @@ void execPipedCommand(char *args[], char *piped_args[], char temp[], S_User *use
 
 		if (pid == 0)
 		{
+			int dupped;
+			if (socket != NULL)
+			{
+				dupped = dup2(client_socket, 1);
+				dup2(client_socket, 2);
+			}
+
 			getArgsForCurrentExec(args, piped_args, start, end); // get the cmds between args[start] -> args[end] to execute them
 
 			close(fd[READ_END]);
 			dup2(fdd, READ_END); // get input from pipe instead of stdin
 			if (i + 1 != num_cmds)
 			{
-				dup2(fd[WRITE_END], WRITE_END); // write output to pipe instead of stdout
-				dup2(fd[WRITE_END], 2);			// write error to pipe instead of stdout
+
+				dup2(fd[WRITE_END], dupped); // write error to pipe instead of stdout
+				dup2(fd[WRITE_END], dupped); // write output to pipe instead of stdout
 			}
 			close(fd[WRITE_END]);
 
 			// first check if it's a custom command
 			if (isCustomCommand(piped_args[0]))
 			{
-				execCustomCommand(args, user);
+				execCustomCommand(args, user, NULL);
 				exit(0);
 			}
 			else
 			{
 				// this is to make sure that ps buffers output correctly
-				if (String_EqualsIgnoreCase(piped_args[0], "ps") && String_EqualsIgnoreCase(piped_args[1], "aux"))
-				{
-					piped_args[1] = "aux";
-					for (int j = 2; j < MAX_ARGS_SIZE; j++)
-					{
-						if (piped_args[j] == NULL)
-						{
-							piped_args[j] = "--cols";
-							piped_args[j + 1] = "1000000000000000";
-							piped_args[j + 2] = NULL;
-							break;
-						}
-					}
-				}
+				// if (String_EqualsIgnoreCase(piped_args[0], "ps") && String_EqualsIgnoreCase(piped_args[1], "aux"))
+				// {
+				// 	piped_args[1] = "aux";
+				// 	for (int j = 2; j < MAX_ARGS_SIZE; j++)
+				// 	{
+				// 		if (piped_args[j] == NULL)
+				// 		{
+				// 			piped_args[j] = "--cols";
+				// 			piped_args[j + 1] = "1000000000000000";
+				// 			piped_args[j + 2] = NULL;
+				// 			break;
+				// 		}
+				// 	}
+				// }
 
 				// else exec normal command
 				if (execvp(piped_args[0], piped_args) < 0)
