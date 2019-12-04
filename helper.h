@@ -93,3 +93,8 @@ void clearStringArray(char *args[], int size)
 	for (int i = 0; i < size && args[i] != NULL; i++)
 		args[i] = NULL;
 }
+void clearString(char args[], int size)
+{
+	for (int i = 0; i < size && args[i] != '\0'; i++)
+		args[i] = '\0';
+}

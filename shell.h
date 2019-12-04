@@ -1,6 +1,7 @@
 #include "helper.h"
 
 // for server
+#include <pthread.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
@@ -14,7 +15,7 @@
 #define WRITE_END 1
 
 // this is used later on to know if we have a custom command (cleaner code purposes)
-const char *CUSTOM_CMDS[] = {"exit", "user", "cd", "pwd", "help"};
+const char *CUSTOM_CMDS[] = {"exit", "user", "cd", "pwd", "help", "mkdir", "rmdir", "rm -r", "rm"};
 const int CSTM_CMDS_SIZE = sizeof(CUSTOM_CMDS) / sizeof(char *);
 
 // for server
@@ -143,6 +144,16 @@ int parseCommand(char *cmd, char *args[], char temp[])
 	return cmd_type; // return true
 }
 
+void printShell(CLIENT *client)
+{
+	printf(RED "%s", client->user.name);
+	printf(RESET);
+
+	printf(YEL "~%s ", client->user.curr_path);
+	printf(RESET);
+	printf(GRN "%s", SHELL_INDICATOR RESET);
+}
+
 void updateCurrentPath(S_User *user)
 {
 	char temp[MAX_PATH_SIZE];
@@ -156,6 +167,7 @@ void updateCurrentPath(S_User *user)
 
 void setUpPaths(S_User *user)
 {
+	chdir("/Users/mbp/Desktop/os-project");
 
 	getcwd((char *)user->SHELL_DIR, MAX_PATH_SIZE);
 
@@ -176,7 +188,7 @@ int isHomeDir(S_User *user)
 	return String_EqualsIgnoreCase(user->curr_path, user->HOME_DIR);
 }
 
-void pathBack(S_User *user, char *req_path)
+void pathBack(S_User *user, char *req_path, char *res)
 {
 	char *paths[MAX_PATH_SIZE];
 
@@ -196,20 +208,25 @@ void pathBack(S_User *user, char *req_path)
 		// can't go up if already in user's home directory
 		if (String_Equals(paths[i], "..") && isHomeDir(user))
 		{
-			perror("Cannot go further than home directory");
+			snprintf(res, MAX_LINE, "Cannot go further than home directory\n");
 			return;
 		}
 		if (chdir(paths[i]) < 0)
-			perror(NULL);
+			snprintf(res, MAX_LINE, "cd: %s directory does not exist", paths[i]);
 		else
+		{
+			snprintf(res, MAX_LINE, "empty");
 			updateCurrentPath(user);
+		}
 	}
 }
 
-void pathForward(S_User *user, char *next)
+void pathForward(S_User *user, char *next, char *res)
 {
 	if (chdir(next) < 0)
-		perror(NULL);
+		snprintf(res, MAX_LINE, "cd: %s directory does not exist", next);
+	else
+		snprintf(res, MAX_LINE, "empty");
 
 	updateCurrentPath(user);
 }
@@ -321,6 +338,10 @@ int getInput(char *cmd, void *socket)
 void execCustomCommand(char *args[], S_User *USER, void *socket)
 {
 
+	int wr = socket == NULL ? 1 : *(int *)socket;
+	int wre = socket == NULL ? 1 : *(int *)socket;
+	char res[MAX_LINE];
+
 	if (String_EqualsIgnoreCase(args[0], "exit"))
 		exit(0);
 
@@ -328,48 +349,69 @@ void execCustomCommand(char *args[], S_User *USER, void *socket)
 	{
 		// if cd doesn't have arguments
 		if (args[1] == NULL)
-			printf("");
+			snprintf(res, sizeof(res), "empty");
 		else
 		{
 			// change directory and update curr_path
 			if (strstr(args[1], "..") != NULL)
-				pathBack(USER, args[1]);
+				pathBack(USER, args[1], res);
 			else
-				pathForward(USER, args[1]);
+				pathForward(USER, args[1], res);
 		}
 	}
-	else
+
+	else if (String_EqualsIgnoreCase(args[0], "mkdir"))
 	{
-		int wr = socket == NULL ? 1 : *(int *)socket;
-		int wre = socket == NULL ? 1 : *(int *)socket;
-		char res[MAX_LINE];
-		// if (socket != NULL)
-		// {
-		// 	int client_socket = *(int *)socket;
-		// 	// dup2(client_socket, 1);
-		// 	// dup2(client_socket, 2);
-		// }
-		// print working directory
-		if (String_EqualsIgnoreCase(args[0], "pwd"))
-			snprintf(res, sizeof(res), "%s\n\n", USER->curr_path);
-
-		// if cmd == user -n => change username
-		else if (String_EqualsIgnoreCase(args[0], "user"))
+		for (int i = 0; i < MAX_ARGS_SIZE && args[i] != NULL; i++)
 		{
-			if (args[1] == NULL)
-				snprintf(res, sizeof(res), "%s is not a valid argument. user [ -i, -n ]\n", args[1]);
-			else if (String_EqualsIgnoreCase(args[1], "-i"))
-				printUserInfo(*USER, res);
-			else if (String_EqualsIgnoreCase(args[1], "-n"))
-				assignUsername(USER, args[2], stdin);
+			if (mkdir(args[i], 0770) < 0)
+				snprintf(res, sizeof(res), "mkdir: %s already exists\n", args[1]);
 			else
-				snprintf(res, sizeof(res), "%s is not a valid argument. user [ -i, -n ]\n", args[1]);
+				snprintf(res, sizeof(res), "empty");
 		}
-
-		else if (String_EqualsIgnoreCase(args[0], "help"))
-			help(res);
-		write(wr, res, sizeof(res));
 	}
+	else if (String_EqualsIgnoreCase(args[0], "rmdir"))
+	{
+		for (int i = 0; i < MAX_ARGS_SIZE && args[i] != NULL; i++)
+		{
+			if (rmdir(args[i]) < 0)
+				snprintf(res, sizeof(res), "rmdir: %s does not exist\n", args[1]);
+			else
+				snprintf(res, sizeof(res), "empty");
+		}
+	}
+	else if (String_EqualsIgnoreCase(args[0], "rm"))
+	{
+		for (int i = 0; i < MAX_ARGS_SIZE && args[i] != NULL; i++)
+		{
+			if (remove(args[i]) < 0)
+				snprintf(res, sizeof(res), "rm: %s does not exist\n", args[1]);
+			else
+				snprintf(res, 6, "empty");
+		}
+	}
+
+	// print working directory
+	else if (String_EqualsIgnoreCase(args[0], "pwd"))
+		snprintf(res, sizeof(res), "%s\n\n", USER->curr_path);
+
+	// if cmd == user -n => change username
+	else if (String_EqualsIgnoreCase(args[0], "user"))
+	{
+		if (args[1] == NULL)
+			snprintf(res, sizeof(res), "%s is not a valid argument. user [ -i, -n ]\n", args[1]);
+		else if (String_EqualsIgnoreCase(args[1], "-i"))
+			printUserInfo(*USER, res);
+		else if (String_EqualsIgnoreCase(args[1], "-n"))
+			assignUsername(USER, args[2], stdin);
+		else
+			snprintf(res, sizeof(res), "%s is not a valid argument. user [ -i, -n ]\n", args[1]);
+	}
+
+	else if (String_EqualsIgnoreCase(args[0], "help"))
+		help(res);
+	write(wr, res, sizeof(res));
+
 	printf(RESET);
 }
 

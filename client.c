@@ -6,6 +6,7 @@ int main()
 	// SETTING UP CLIENT CONNECTION
 
 	// create client socket
+	printf("Creating socket...\n");
 	int client_socket = socket(AF_INET, SOCK_STREAM, 0);
 	if (client_socket < 0)
 	{
@@ -19,6 +20,7 @@ int main()
 	server_address.sin_port = htons(SERVER_PORT);
 
 	// try to establish connection with server
+	printf("Finding server...\n");
 	int inet = inet_pton(AF_INET, SERVER_IP, &server_address.sin_addr);
 
 	if (inet <= 0)
@@ -28,11 +30,14 @@ int main()
 		exit(1);
 	}
 
+	printf("Connecting to server...\n");
 	if (connect(client_socket, (struct sockaddr *)&server_address, sizeof(server_address)) < 0)
 	{
 		perror("Error establishing socket connection\n");
 		exit(1);
 	}
+
+	printf("!!! Connection Established !!!\n");
 	// client is connected if here
 	CLIENT client = {};
 
@@ -50,16 +55,9 @@ int main()
 
 		if (client_socket > 0)
 		{
+			read(client_socket, client.user.curr_path, MAX_PATH_SIZE);
 			// print username and $
-			// if username isn't empty
-			if (client.user.name[0] != '\n')
-			{
-				printf(RED "%s", client.user.name);
-				printf(RESET);
-			}
-			printf(YEL "~%s ", client.user.curr_path);
-			printf(RESET);
-			printf(GRN "%s", SHELL_INDICATOR RESET);
+			printShell(&client);
 
 			// read from client
 			while (fgets(client.cmd, MAX_LINE, stdin))
@@ -68,9 +66,7 @@ int main()
 				if (strlen(client.cmd) > 0)
 					break;
 				// print username and $
-				printf(YEL "~%s ", client.user.curr_path);
-				printf(RESET);
-				printf(GRN "%s", SHELL_INDICATOR RESET);
+				printShell(&client);
 			}
 
 			// if input not empty
@@ -86,14 +82,18 @@ int main()
 			// read response from server
 			// if (read(client_socket, client.temp, MAX_LINE) < 0)
 			// 	perror("Error reading from server.\n");
-			char x;
-			int i = 0;
-			while (i++ < 4)
+			// while (i > 0)
+			// {
+			clearString(client.temp, strlen(client.temp));
+			if (read(client_socket, client.temp, MAX_LINE) > 0)
 			{
-				int n = read(client_socket, client.temp, MAX_LINE);
-				if (i == 4)
+
+				if (!String_EqualsIgnoreCase(client.temp, "empty"))
 					printf("%s", client.temp);
 			}
+
+			// break;
+			// }
 		}
 	}
 	close(client_socket);
