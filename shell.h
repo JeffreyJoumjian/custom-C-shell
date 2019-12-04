@@ -148,7 +148,6 @@ void printShell(CLIENT *client)
 {
 	printf(RED "%s", client->user.name);
 	printf(RESET);
-
 	printf(YEL "~%s ", client->user.curr_path);
 	printf(RESET);
 	printf(GRN "%s", SHELL_INDICATOR RESET);
@@ -242,11 +241,6 @@ void assignUsername(S_User *user, char *newName, void *socket)
 			printf("%s", get_username);
 			fgets(user->name, MAX_USER_NAME, stdin);
 		}
-		// else
-		// {
-		// 	write(*(int *)socket, get_username, sizeof(get_username));
-		// 	read(*(int *)socket, user->name, sizeof(user->name));
-		// }
 	}
 	else
 	{
@@ -275,21 +269,21 @@ void setUpUser(S_User *USER, void *socket)
 
 void help(char *res)
 {
-	snprintf(res, MAX_LINE,
-			 "\n*** WELCOME TO THE HELP GUIDE ***\n"
-			 "----------------------------------\n"
-			 "Supported Commands:\n"
-			 "-------------------\n"
-			 "1 - help (prints the help manual for the shell)\n"
-			 "2 - exit (exits the shell)\n"
-			 "3 - cd <dst_path> (used to change the working directory)\n"
-			 "4 - pwd (prints the current working directory of the user <username/home/...>)\n"
-			 "5 - user [ -i, -n ]\n"
-			 "\t-n <new_username> (changes the username of the current user)\n"
-			 "\t-i (print user info)\n"
-			 "6 - ls, ps, rm ... (supports all UNIX commands with their arguments)\n"
-			 "7 - pipe support for up to 21 commands\n"
-			 "\n*** Jeffrey Joumjian - Maria Kantardjian - Reem Saado ***\n");
+	snprintf(res, MAX_LINE, YEL "\n*** WELCOME TO THE HELP GUIDE ***\n"
+								"----------------------------------\n"
+								"Supported Commands:\n"
+								"-------------------\n"
+								"1 - help (prints the help manual for the shell)\n"
+								"2 - exit (exits the shell)\n"
+								"3 - cd <dst_path> (used to change the working directory)\n"
+								"4 - pwd (prints the current working directory of the user <username/home/...>)\n"
+								"5 - user [ -i, -n ]\n"
+								"\t-n <new_username> (changes the username of the current user)\n"
+								"\t-i (print user info)\n"
+								"6 - ls, ps, cat ... (supports most UNIX commands with their arguments)\n"
+								"7 - mkdir, rmdir, rm ... (supports most UNIX commands with their arguments)\n"
+								"8 - pipe support for up to 21+ commands\n"
+								"\n*** Jeffrey Joumjian - Maria Kantardjian - Reem Saado ***\n" RESET);
 }
 
 void printUserInfo(S_User user, char *res)

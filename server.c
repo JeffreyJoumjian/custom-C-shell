@@ -4,7 +4,6 @@ void *handle_client(void *_CLIENT)
 {
 	CLIENT client = *(CLIENT *)_CLIENT;
 
-	setUpUser(&client.user, NULL);
 	time_t _time;
 
 	// log which client is connected
@@ -15,6 +14,8 @@ void *handle_client(void *_CLIENT)
 
 	read(client.socket, client.user.name, MAX_USER_NAME);
 	String_splitFirst(client.user.name, "\n");
+
+	setUpUser(&client.user, NULL);
 
 	printf("Client [%d]: {%s} has logged in at time {%s}\n", client.id, client.user.name, time_str);
 
@@ -33,7 +34,7 @@ void *handle_client(void *_CLIENT)
 				break;
 			}
 
-			printf("\tClient {%d}: %s\n", client.id, client.cmd);
+			printf("\tClient {%d}: %s %s $ %s\n", client.id, client.user.name, client.user.curr_path, client.cmd);
 
 			bzero(stdin, sizeof(stdin));
 			bzero(stderr, sizeof(stderr));

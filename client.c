@@ -42,7 +42,8 @@ int main()
 	CLIENT client = {};
 
 	// greet client by asking for username
-	printf("%s", get_username);
+	printf(YEL "%s", get_username);
+	printf(RESET);
 	fgets(client.user.name, MAX_USER_NAME, stdin);
 	write(client_socket, client.user.name, MAX_USER_NAME);
 
@@ -55,11 +56,13 @@ int main()
 
 		if (client_socket > 0)
 		{
-			read(client_socket, client.user.curr_path, MAX_PATH_SIZE);
 			// print username and $
+			read(client_socket, client.user.curr_path, MAX_PATH_SIZE);
+			printf(RESET);
 			printShell(&client);
 
 			// read from client
+			clearString(client.cmd, strlen(client.cmd));
 			while (fgets(client.cmd, MAX_LINE, stdin))
 			{
 				client.cmd[strlen(client.cmd) - 1] = '\0';
@@ -76,6 +79,14 @@ int main()
 				close(client_socket);
 				break;
 			}
+
+			// if change user name => change locally too
+			if (strcasestr(client.cmd, "user -n"))
+			{
+				parseCommand(client.cmd, client.args, client.temp);
+				assignUsername(&client.user, client.args[2], NULL);
+			}
+
 			if (write(client_socket, client.cmd, MAX_CMD_SIZE) < 0)
 				perror("Error writing to server.\n");
 
