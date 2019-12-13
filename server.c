@@ -103,6 +103,7 @@ int main(int argc, char **argv)
 		if (client_socket < 0)
 			continue;
 
+		++num_clients;
 		if (fork() == 0)
 		{
 
@@ -111,7 +112,7 @@ int main(int argc, char **argv)
 			S_User user = {};
 			client.socket = client_socket;
 			client.user = user;
-			client.id = ++num_clients;
+			client.id = num_clients;
 
 			pthread_t client_thread;
 			pthread_attr_t attr;
